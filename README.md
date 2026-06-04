@@ -10,9 +10,9 @@
 [![engine CI](https://github.com/abrar-sarwar/netwraith/actions/workflows/engine-ci.yml/badge.svg)](https://github.com/abrar-sarwar/netwraith/actions/workflows/engine-ci.yml)
 
 NETWRAITH is a signature and heuristic based network intrusion detection engine written in C++17 on top of
-libpcap, paired with a live, dark mode dashboard built in Next.js. The engine parses traffic from the link layer
+libpcap, paired with a calm, dark mode dashboard built in Next.js. The engine parses traffic from the link layer
 up through the transport layer by hand, matches it against a rule file and three stateful heuristics, and emits
-structured JSON alerts. A small Node bridge tails those alerts and streams them to the dashboard over WebSocket.
+structured JSON alerts. A small Node bridge tails those alerts and serves them to the dashboard over a small REST API.
 It runs locally, needs no root to demo, and ships with a replayable capture so a reviewer sees it work in seconds.
 
 ## What it catches
@@ -69,11 +69,14 @@ dashboard to consume:
 
 ### The dashboard
 
-The dashboard is the calm, dark mode operator view: a live alert feed in a console treatment, severity stat cards,
-a top talkers panel, and a category breakdown, all updating as alerts arrive over WebSocket.
+The dashboard is the calm, dark operator console: severity readouts, a sortable and filterable alert table, a top
+talkers panel, and a category split. Every readout doubles as a filter, so you can scope the table to a severity, a
+category, a protocol, or a single source in one click, then search across ip, rule, and message. It loads a snapshot
+from the bridge and refreshes on demand, no live wire required.
 
-<!-- Drop a dashboard screenshot or terminal GIF here. Suggested path: docs/dashboard.png -->
 ![NETWRAITH dashboard](docs/dashboard.png)
+
+The view below is sorted by severity, so the Critical SYN flood and the High signature hits lead.
 
 ## Quickstart
 
@@ -110,20 +113,22 @@ sudo setcap cap_net_raw,cap_net_admin+eip ./engine/netwraith
 
 ## Architecture
 
+![NETWRAITH architecture](docs/architecture.svg)
+
 ```
 engine/        C++17 detection engine: libpcap capture, hand-rolled parsing, rules, and heuristics
   include/     shared types (netwraith.h) and the parser, detector, and emitter interfaces
   src/         parser, detector, emitter, and main (pcap loop, CLI, BPF, signals, threads)
   rules/       default.rules, the signature set in a simple key=value format
-bridge/        Node sidecar: tails the JSONL log, serves WebSocket and a small REST API
-dashboard/     Next.js 14 dashboard: live feed, severity cards, top talkers, category breakdown
+bridge/        Node sidecar: tails the JSONL log, serves a small REST API (and a WebSocket)
+dashboard/     Next.js 14 console: severity readouts, a filterable alert table, top talkers, category split
 captures/      the scapy generator and the committed demo.pcap
 scripts/       demo.sh, the one command runner for the engine to bridge path
 .github/       the engine build and replay smoke test that backs the CI badge
 ```
 
 Data flow: the engine writes JSON Lines to `engine/netwraith.jsonl`, the bridge tails that file and serves the
-alerts over WebSocket and REST, and the dashboard renders them live.
+alerts over a small REST API, and the dashboard reads a snapshot and lets an operator filter and sort it.
 
 ## Design notes
 
