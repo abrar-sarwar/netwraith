@@ -7,7 +7,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-14-000000)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)
 ![License MIT](https://img.shields.io/badge/license-MIT-555555)
-[![engine CI](https://github.com/abrar-sarwar/sentinel/actions/workflows/engine-ci.yml/badge.svg)](https://github.com/abrar-sarwar/sentinel/actions/workflows/engine-ci.yml)
+[![engine CI](https://github.com/abrar-sarwar/netwraith/actions/workflows/engine-ci.yml/badge.svg)](https://github.com/abrar-sarwar/netwraith/actions/workflows/engine-ci.yml)
 
 NETWRAITH is a signature and heuristic based network intrusion detection engine written in C++17 on top of
 libpcap, paired with a live, dark mode dashboard built in Next.js. The engine parses traffic from the link layer
