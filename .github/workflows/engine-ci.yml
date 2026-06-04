@@ -1,0 +1,45 @@
+name: engine-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine-smoke:
+    name: engine smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install libpcap headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpcap-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scapy
+        run: pip install scapy
+
+      - name: Build the engine
+        run: make -C engine
+
+      - name: Generate the demo capture
+        run: python3 captures/generate_test_pcap.py
+
+      - name: Replay the capture through the engine
+        run: engine/netwraith -r captures/demo.pcap -o out.jsonl
+
+      - name: Assert the engine produced alerts
+        run: |
+          if [ ! -s out.jsonl ]; then
+            echo "Smoke test failed: out.jsonl is empty. The engine produced no alerts."
+            exit 1
+          fi
+          COUNT="$(wc -l < out.jsonl)"
+          echo "NETWRAITH smoke test passed: ${COUNT} alert line(s) from the demo capture."
