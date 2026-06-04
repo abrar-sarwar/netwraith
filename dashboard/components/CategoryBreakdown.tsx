@@ -2,50 +2,68 @@
 
 import type { ByCategory, Category } from "@/lib/types";
 import { CATEGORY_ORDER } from "@/lib/types";
+import { CATEGORY_META } from "@/lib/ui";
 
 interface CategoryBreakdownProps {
   byCategory: ByCategory;
+  activeCategories: Category[];
+  onToggle: (c: Category) => void;
 }
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  signature: "Signature",
-  scan: "Scan",
-  flood: "Flood",
-  anomaly: "Anomaly"
-};
-
-export function CategoryBreakdown({ byCategory }: CategoryBreakdownProps) {
+export function CategoryBreakdown({
+  byCategory,
+  activeCategories,
+  onToggle
+}: CategoryBreakdownProps) {
   const total = CATEGORY_ORDER.reduce((acc, c) => acc + byCategory[c], 0);
 
   return (
-    <section className="rounded-lg border border-zinc-800/80 bg-zinc-900/30">
+    <section className="panel">
       <div className="border-b border-zinc-800/80 px-4 py-2.5">
-        <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-          Category Split
+        <h2 className="font-display text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-300">
+          Category split
         </h2>
       </div>
 
-      <div className="space-y-3 px-4 py-4">
+      <div className="flex flex-col">
         {CATEGORY_ORDER.map((cat) => {
           const value = byCategory[cat];
           const pct = total > 0 ? (value / total) * 100 : 0;
+          const active = activeCategories.includes(cat);
           return (
-            <div key={cat}>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[12px] text-zinc-400">
-                  {CATEGORY_LABEL[cat]}
+            <button
+              key={cat}
+              type="button"
+              onClick={() => onToggle(cat)}
+              aria-pressed={active}
+              className={`group border-b border-zinc-900/80 px-4 py-2.5 text-left transition-colors last:border-b-0 focus:outline-none focus-visible:bg-zinc-800/30 ${
+                active ? "bg-accent/[0.06]" : "hover:bg-zinc-800/20"
+              }`}
+            >
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="flex items-baseline gap-2">
+                  <span
+                    className={`font-sans text-[12.5px] ${
+                      active ? "text-accent-soft" : "text-zinc-300"
+                    }`}
+                  >
+                    {CATEGORY_META[cat].label}
+                  </span>
+                  <span className="font-mono text-[10px] text-zinc-600">
+                    {CATEGORY_META[cat].note}
+                  </span>
                 </span>
-                <span className="font-mono text-[11px] tabular-nums text-zinc-500">
+                <span className="tnum font-mono text-[11px] text-zinc-500">
                   {value.toLocaleString()}
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800/60">
+              <div className="h-[5px] overflow-hidden bg-zinc-800/50">
                 <div
-                  className="h-full rounded-full bg-zinc-500/70"
+                  className={active ? "h-full bg-accent/70" : "h-full bg-zinc-500/60"}
                   style={{ width: `${pct}%` }}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

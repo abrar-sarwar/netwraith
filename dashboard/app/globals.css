@@ -4,6 +4,14 @@
 
 :root {
   color-scheme: dark;
+  /* Severity ramp, also exposed as CSS variables for inline, per row use. */
+  --sev-info: #71717a;
+  --sev-low: #a1a1aa;
+  --sev-medium: #b7935a;
+  --sev-high: #c2705a;
+  --sev-critical: #818cf8;
+  --accent: #6366f1;
+  --grid: rgba(113, 113, 122, 0.06);
 }
 
 html,
@@ -13,41 +21,98 @@ body {
 
 body {
   @apply bg-zinc-950 text-zinc-300 antialiased;
-  font-feature-settings: "ss01", "cv01";
+  font-feature-settings: "ss01", "cv01", "zero";
+  /* Atmosphere, not a flat fill: a faint indigo wash at the crown and a fine
+     surveying grid that gives the surface depth without shouting. */
+  background-color: #08080a;
+  background-image:
+    radial-gradient(
+      120% 80% at 50% -20%,
+      rgba(99, 102, 241, 0.1),
+      rgba(99, 102, 241, 0) 60%
+    ),
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 100% 100%, 34px 34px, 34px 34px;
+  background-attachment: fixed;
 }
 
-/* Hairline borders read cleaner than full shadows in this design. */
+/* A whisper of grain so large dark panels never look like dead plastic. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Keep app content above the grain layer. */
+#app-root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hairline borders read cleaner than shadows in this language. */
 .hairline {
-  @apply border border-zinc-800/80;
+  border: 1px solid rgba(39, 39, 42, 0.9);
 }
 
-/* The feed should read like a console: tight, monospace, calm. */
-.console {
-  @apply font-mono text-[12.5px] leading-relaxed;
+/* A panel: lifted a hair off the base, hairline framed, faint inner crown. */
+.panel {
+  background-color: rgba(15, 15, 18, 0.62);
+  border: 1px solid rgba(39, 39, 42, 0.85);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.018);
 }
 
-/* Subtle scrollbar so the feed does not shout. */
-.feed-scroll {
+/* Console surfaces read as machine output: tabular figures, tight, calm. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle scrollbar so the table never shouts. */
+.quiet-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgb(63 63 70) transparent;
 }
 
-.feed-scroll::-webkit-scrollbar {
-  width: 8px;
+.quiet-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
 }
 
-.feed-scroll::-webkit-scrollbar-track {
+.quiet-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.feed-scroll::-webkit-scrollbar-thumb {
-  background-color: rgb(63 63 70);
+.quiet-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(63, 63, 70, 0.7);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* One time staggered entrance. Resting state is visible; the keyframe runs
+   backwards so the pre delay state is hidden, never stuck invisible. */
+.reveal {
+  animation: reveal 520ms cubic-bezier(0.2, 0.6, 0.2, 1) backwards;
+}
+
+@keyframes reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-alert-in,
-  .animate-pulse-soft {
+  .reveal {
     animation: none !important;
   }
 }

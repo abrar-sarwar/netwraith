@@ -1,15 +1,29 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Inter } from "next/font/google";
+import { Chakra_Petch, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-const sans = Inter({
+// Display face for the wordmark and instrument readouts. Squared, technical,
+// a heads up display character that suits a tool watching the wire.
+const display = Chakra_Petch({
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+  display: "swap"
+});
+
+// Body chrome. Utilitarian, infrastructure grade, not Inter.
+const sans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-sans",
   display: "swap"
 });
 
-const mono = JetBrains_Mono({
+// Every IP, port, rule id, and timestamp reads in mono so the data looks like
+// what it is: machine output.
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-mono",
   display: "swap"
 });
@@ -25,7 +39,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${sans.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`dark ${display.variable} ${sans.variable} ${mono.variable}`}
+    >
       <body className="font-sans">{children}</body>
     </html>
   );
