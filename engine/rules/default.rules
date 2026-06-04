@@ -1,0 +1,48 @@
+# NETWRAITH default signature rules.
+# It watches the wire so you do not have to.
+#
+# Format: one rule per line, written as key=value pairs separated by spaces.
+# A value with spaces must be wrapped in double quotes. Inside quotes, use
+# \" for a literal quote and \\ for a literal backslash. Lines that start
+# with # are comments. Blank lines are ignored.
+#
+# Recognized keys:
+#   id        short rule identifier (required; a rule without one is dropped)
+#   proto     tcp | udp | icmp | any
+#   dst_port  destination port to match, or omit for any
+#   content   raw payload substring to search for (bytes, case sensitive)
+#   flags     required TCP flags from the set F S R P A U
+#             (FIN SYN RST PSH ACK URG). A rule matches when ALL listed
+#             flags are present. An EMPTY flags= matches a TCP packet with
+#             NO flags set at all, which is a NULL scan.
+#   severity  info | low | medium | high | critical (default medium)
+#   msg       human readable description in the NETWRAITH voice
+#
+# The three heuristics (SYN scan, SYN flood, ICMP sweep) are built in and do
+# not live here. These rules cover the signature paths.
+
+# NULL scan: a TCP segment with not a single flag set. Nobody sends these by
+# accident. Empty flags= selects the NULL case.
+id=SCAN-NULL proto=tcp flags= severity=high msg="NULL scan: a TCP segment with no flags. Someone is mapping you quietly."
+
+# FIN scan: a lone FIN, used to slip past stateless filters.
+id=SCAN-FIN proto=tcp flags=F severity=medium msg="FIN scan: a bare FIN probe. Stealth reconnaissance underway."
+
+# XMAS scan: FIN, PSH, and URG all lit, the packet is lit up like a tree.
+id=SCAN-XMAS proto=tcp flags=FPU severity=high msg="XMAS scan: FIN, PSH, and URG all set. The wire is being mapped."
+
+# HTTP SQL injection: a classic tautology in an HTTP request to port 80.
+id=WEB-SQLI proto=tcp dst_port=80 content="' OR '1'='1" severity=high msg="SQL injection signature in HTTP traffic. The database is under probe."
+
+# Directory traversal: dot-dot-slash climbing out of the web root.
+id=WEB-TRAVERSAL content="../../" severity=medium msg="Directory traversal sequence observed. Something is walking the filesystem."
+
+# Shell string: a reference to /bin/sh riding inside a payload.
+id=MAL-SHELL content="/bin/sh" severity=high msg="Shell path /bin/sh seen in payload. Possible command execution attempt."
+
+# EICAR: the standard antivirus test string. Harmless, but it should never
+# appear on the wire unannounced.
+id=MAL-EICAR proto=any content="X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*" severity=critical msg="EICAR test signature on the wire. Confirm this is a drill."
+
+# ICMP echo: informational only. Logs that a ping was observed.
+id=NET-ICMP-ECHO proto=icmp severity=info msg="ICMP echo observed. A host is checking who is home."
