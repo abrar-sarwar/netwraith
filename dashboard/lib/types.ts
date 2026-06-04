@@ -45,19 +45,6 @@ export interface Stats {
   top_talkers: TopTalker[];
 }
 
-// WebSocket envelope shapes from the bridge.
-export interface SnapshotMessage {
-  type: "snapshot";
-  alerts: Alert[];
-}
-
-export interface AlertMessage {
-  type: "alert";
-  alert: Alert;
-}
-
-export type BridgeMessage = SnapshotMessage | AlertMessage;
-
 export const SEVERITY_ORDER: Severity[] = [
   "critical",
   "high",

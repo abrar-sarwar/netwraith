@@ -1,21 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  Alert,
-  BridgeMessage,
-  BySeverity,
-  ByCategory,
-  Stats,
-  TopTalker
-} from "./types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Alert, BySeverity, ByCategory, Stats, TopTalker } from "./types";
 
 const BRIDGE_URL =
   process.env.NEXT_PUBLIC_BRIDGE_URL ?? "http://localhost:4317";
-const BRIDGE_WS = process.env.NEXT_PUBLIC_BRIDGE_WS ?? "ws://localhost:4317";
-
-// Cap the rendered feed. The wire never stops; the screen has limits.
-const MAX_ALERTS = 200;
 
 const EMPTY_SEVERITY: BySeverity = {
   critical: 0,
@@ -33,8 +22,8 @@ const EMPTY_CATEGORY: ByCategory = {
 };
 
 function stripPort(src: string): string {
-  // src is "ip:port". For top talkers we aggregate on ip only. IPv4 only here,
-  // which matches the engine contract, so a simple last-colon split is safe.
+  // src is "ip:port". Top talkers aggregate on ip only. IPv4 only here, which
+  // matches the engine contract, so a last colon split is safe.
   const idx = src.lastIndexOf(":");
   return idx === -1 ? src : src.slice(0, idx);
 }
@@ -42,9 +31,7 @@ function stripPort(src: string): string {
 function deriveSeverity(alerts: Alert[]): BySeverity {
   const out: BySeverity = { ...EMPTY_SEVERITY };
   for (const a of alerts) {
-    if (a.severity in out) {
-      out[a.severity] += 1;
-    }
+    if (a.severity in out) out[a.severity] += 1;
   }
   return out;
 }
@@ -52,9 +39,7 @@ function deriveSeverity(alerts: Alert[]): BySeverity {
 function deriveCategory(alerts: Alert[]): ByCategory {
   const out: ByCategory = { ...EMPTY_CATEGORY };
   for (const a of alerts) {
-    if (a.category in out) {
-      out[a.category] += 1;
-    }
+    if (a.category in out) out[a.category] += 1;
   }
   return out;
 }
@@ -73,163 +58,67 @@ function deriveTopTalkers(alerts: Alert[]): TopTalker[] {
 
 export interface NetwraithState {
   alerts: Alert[];
-  connected: boolean;
-  // Live counts derived from the alerts currently in view.
   bySeverity: BySeverity;
   byCategory: ByCategory;
   topTalkers: TopTalker[];
-  // Authoritative totals from the bridge stats endpoint, when reachable.
   serverStats: Stats | null;
+  // Snapshot status, not a live wire. The operator loads, reads, refreshes.
+  loading: boolean;
+  reachable: boolean;
+  lastUpdated: number | null;
+  refresh: () => void;
 }
 
 export function useNetwraith(): NetwraithState {
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [connected, setConnected] = useState(false);
   const [serverStats, setServerStats] = useState<Stats | null>(null);
-
-  // Ref mirror of connection so timers and handlers read fresh state without
-  // re-subscribing.
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reachable, setReachable] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const mountedRef = useRef(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let ok = false;
+    try {
+      const res = await fetch(`${BRIDGE_URL}/api/alerts`, {
+        cache: "no-store"
+      });
+      if (res.ok) {
+        const data: { alerts?: Alert[] } = await res.json();
+        if (mountedRef.current && Array.isArray(data.alerts)) {
+          setAlerts(data.alerts);
+          ok = true;
+        }
+      }
+    } catch {
+      // Bridge down. Stay quiet, the table shows a calm waiting state.
+    }
+    try {
+      const res = await fetch(`${BRIDGE_URL}/api/stats`, {
+        cache: "no-store"
+      });
+      if (res.ok) {
+        const data: Stats = await res.json();
+        if (mountedRef.current) setServerStats(data);
+      }
+    } catch {
+      // Quiet.
+    }
+    if (mountedRef.current) {
+      setReachable(ok);
+      setLoading(false);
+      if (ok) setLastUpdated(Date.now());
+    }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-
-    // Backfill from REST first so the operator sees history on load even before
-    // the socket opens. Failures here are quiet by design.
-    async function backfill() {
-      try {
-        const res = await fetch(`${BRIDGE_URL}/api/alerts`, {
-          cache: "no-store"
-        });
-        if (res.ok) {
-          const data: { alerts?: Alert[] } = await res.json();
-          if (mountedRef.current && Array.isArray(data.alerts)) {
-            setAlerts(data.alerts.slice(0, MAX_ALERTS));
-          }
-        }
-      } catch {
-        // Bridge down. Stay quiet, the UI shows a waiting state.
-      }
-      try {
-        const res = await fetch(`${BRIDGE_URL}/api/stats`, {
-          cache: "no-store"
-        });
-        if (res.ok) {
-          const data: Stats = await res.json();
-          if (mountedRef.current) {
-            setServerStats(data);
-          }
-        }
-      } catch {
-        // Quiet.
-      }
-    }
-
-    function connect() {
-      let ws: WebSocket;
-      try {
-        ws = new WebSocket(BRIDGE_WS);
-      } catch {
-        scheduleReconnect();
-        return;
-      }
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (!mountedRef.current) return;
-        setConnected(true);
-      };
-
-      ws.onmessage = (event) => {
-        if (!mountedRef.current) return;
-        let parsed: BridgeMessage;
-        try {
-          parsed = JSON.parse(event.data as string) as BridgeMessage;
-        } catch {
-          return;
-        }
-        if (parsed.type === "snapshot") {
-          // Snapshot is newest-first already. Trust the contract, then cap.
-          setAlerts(parsed.alerts.slice(0, MAX_ALERTS));
-        } else if (parsed.type === "alert") {
-          const incoming = parsed.alert;
-          setAlerts((prev) => {
-            const next = [incoming, ...prev];
-            if (next.length > MAX_ALERTS) {
-              next.length = MAX_ALERTS;
-            }
-            return next;
-          });
-        }
-      };
-
-      ws.onclose = () => {
-        if (!mountedRef.current) return;
-        setConnected(false);
-        scheduleReconnect();
-      };
-
-      ws.onerror = () => {
-        // Let onclose drive reconnection. Do not surface a raw error.
-        try {
-          ws.close();
-        } catch {
-          // ignore
-        }
-      };
-    }
-
-    function scheduleReconnect() {
-      if (!mountedRef.current) return;
-      if (reconnectRef.current) return;
-      reconnectRef.current = setTimeout(() => {
-        reconnectRef.current = null;
-        if (mountedRef.current) {
-          connect();
-        }
-      }, 2500);
-    }
-
-    backfill();
-    connect();
-
-    // Refresh authoritative stats on a calm interval. The derived counts cover
-    // the live view; this keeps the server totals honest over time.
-    const statsTimer = setInterval(async () => {
-      try {
-        const res = await fetch(`${BRIDGE_URL}/api/stats`, {
-          cache: "no-store"
-        });
-        if (res.ok) {
-          const data: Stats = await res.json();
-          if (mountedRef.current) {
-            setServerStats(data);
-          }
-        }
-      } catch {
-        // Quiet.
-      }
-    }, 10000);
-
+    load();
     return () => {
       mountedRef.current = false;
-      clearInterval(statsTimer);
-      if (reconnectRef.current) {
-        clearTimeout(reconnectRef.current);
-        reconnectRef.current = null;
-      }
-      if (wsRef.current) {
-        try {
-          wsRef.current.close();
-        } catch {
-          // ignore
-        }
-        wsRef.current = null;
-      }
     };
-  }, []);
+  }, [load]);
 
   const bySeverity = useMemo(() => deriveSeverity(alerts), [alerts]);
   const byCategory = useMemo(() => deriveCategory(alerts), [alerts]);
@@ -237,10 +126,13 @@ export function useNetwraith(): NetwraithState {
 
   return {
     alerts,
-    connected,
     bySeverity,
     byCategory,
     topTalkers,
-    serverStats
+    serverStats,
+    loading,
+    reachable,
+    lastUpdated,
+    refresh: load
   };
 }
