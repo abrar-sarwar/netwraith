@@ -1,0 +1,13 @@
+{
+  "name": "netwraith-bridge",
+  "version": "1.0.0",
+  "description": "NETWRAITH bridge: tails the engine JSONL log and serves it to the dashboard over WebSocket and HTTP.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
