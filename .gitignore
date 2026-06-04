@@ -1,0 +1,29 @@
+# NETWRAITH ignore rules.
+
+# Build artifacts.
+build/
+*.o
+engine/netwraith
+
+# Generated alert log from a replay or live run.
+engine/netwraith.jsonl
+
+# Node and Next.js.
+node_modules/
+.next/
+
+# OS cruft.
+.DS_Store
+
+# Local Claude Code settings (machine specific, not shared).
+.claude/settings.local.json
+
+# Python caches, virtualenvs, and tooling.
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Note: captures/demo.pcap is committed on purpose so the demo works on a fresh
+# clone with no capture step. Do not ignore it.
